@@ -1,9 +1,8 @@
 # Sequential Labeling using BiLSTM+CRF
-
 ---
-###Attention plz: `tensorflow` upgrades too much frequently causing the codes unrunnabel. But that still can be used to be a reference.
+### Attention plz: `tensorflow` upgrades too much frequently causing the codes unrunnabel. But that still can be used to be a reference.
 ---
-#@char embedding
+# @char embedding
 ### Input
 
 ```
@@ -24,7 +23,7 @@ NBAD\<@\>NBA
 ZZZZZ\<@\>
 ```
 ---
-#@world embedding
+# @world embedding
 *same as `char embedding`*
 ```
 I  B
