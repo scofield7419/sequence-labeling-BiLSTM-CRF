@@ -23,7 +23,7 @@ NBAD\<@\>NBA
 ZZZZZ\<@\>
 ```
 ---
-# @world embedding
+# @word embedding
 *same as `char embedding`*
 ```
 I  B
