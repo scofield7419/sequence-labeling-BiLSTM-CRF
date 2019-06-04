@@ -1,0 +1,4 @@
+model_checkpoint_path: "model-CRFs-11736"
+all_model_checkpoint_paths: "model-CRFs-7172"
+all_model_checkpoint_paths: "model-CRFs-7824"
+all_model_checkpoint_paths: "model-CRFs-11736"

@@ -1,0 +1,82 @@
+@charset "UTF-8";
+.ver-error-input {
+    border: 1px solid #ff1f30;
+}
+
+.ver-errors {
+    color: #ff1f30;
+    font-size: 12px;
+    margin: 0 !important;
+    position: relative;
+    width: auto;
+    max-width: 220px;
+    background-color: #dedede;
+    padding: 0 10px;
+    border-radius: 5px;
+    display: inline-block;
+    left: 10px;
+    vertical-align: top;
+    top: 3px;
+    line-height: 30px;
+}
+
+.ver-errors .ver-error-caret {
+    color: #dedede;
+    position: absolute;
+    left: -12px;
+    width: 15px;
+    height: 30px;
+    line-height: 30px;
+    top: 0px;
+}
+
+.ver-errors .ver-error-caret.ver-icon-carets:before {
+    content: "\e6cc";
+}
+
+.ver-money-input {
+    vertical-align: middle;
+    color: #333;
+}
+
+.ver-money-input::before {
+    content: "￥";
+}
+
+.ver-money-input > input {
+    width: 60px;
+    border: 0;
+    border-bottom: 1px solid #dedede;
+    padding: 0;
+    margin: 0;
+}
+
+.ver-error-inputs {
+    border: 1px solid #ff1f30;
+    border-right: 0;
+}
+
+.ver-errorMessageBlock{
+    display: block;
+    top: 5px;
+    width: 100%;
+    max-width: 100%;
+    left: 0;
+    background: none;
+}
+@media screen and (max-width: 800px) {
+    .ver-errors {
+        display: block;
+        top: 10px;
+        margin-left: -10px !important;
+    }
+
+    .ver-errors .ver-error-caret {
+        left: 3px;
+        top: -19px;
+    }
+
+    .ver-errors .ver-error-caret.ver-icon-carets:before {
+        content: "\e6d0";
+    }
+}

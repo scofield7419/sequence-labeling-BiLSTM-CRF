@@ -1,0 +1,292 @@
+{% load staticfiles %}
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Demonstration: Sequence Labeling with BiLSTM+CRF</title>
+
+    <link href="{% static 'css/bootstrap-theme.css' %}" rel="stylesheet">
+    <link href="{% static 'css/elegant-icons-style.css' %}" rel="stylesheet"/>
+    <link href="{% static 'css/font-awesome.min.css' %}" rel="stylesheet"/>
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    <link href="{% static 'css/jquery-ui-1.10.4.min.css' %}" rel="stylesheet">
+    <script src="{% static 'js/jquery-1.10.0.min.js' %}"></script>
+    <script src="{% static 'js/jquery.js' %}"></script>
+    <script src="{% static 'js/jquery-ui-1.10.4.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/jquery-ui-1.9.2.custom.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/jquery.mark.min.js' %}"></script>
+
+    <style>
+
+        circle {
+            fill: #ccc;
+        }
+
+        text {
+            font: 12px Microsoft YaHei;
+            pointer-events: none;
+            text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+        }
+
+        img {
+            border: 0;
+        }
+
+        body {
+            background: #f7f7f7;
+            color: #666;
+            font: 12px/150% Arial, Verdana, "microsoft yahei";
+        }
+
+        html, body, div, dl, dt, dd, ol, ul, li, h1, h2, h3, h4, h5, h6, p, blockquote, pre, button, fieldset, form, input, legend, textarea, th, td {
+            margin: 0;
+            padding: 0;
+        }
+
+        article, aside, details, figcaption, figure, footer, header, main, menu, nav, section, summary {
+            display: block;
+            margin: 0;
+            padding: 0;
+        }
+
+        audio, canvas, progress, video {
+            display: inline-block;
+            vertical-align: baseline;
+        }
+
+        a {
+            text-decoration: none;
+            color: #08acee;
+        }
+
+        a:active, a:hover {
+            outline: 0;
+        }
+
+        button {
+            outline: 0;
+        }
+
+        mark {
+            color: #000;
+            background: #ff0;
+        }
+
+        small {
+            font-size: 80%;
+        }
+
+        img {
+            border: 0;
+        }
+
+        button, input, optgroup, select, textarea {
+            margin: 0;
+            font: inherit;
+            color: inherit;
+            outline: none;
+        }
+
+        li {
+            list-style: none;
+        }
+
+        i {
+            font-style: normal;
+        }
+
+        a {
+            color: #666;
+        }
+
+        a:hover {
+            color: #eee;
+        }
+
+        em {
+            font-style: normal;
+        }
+
+        h2, h3 {
+            font-family: "microsoft yahei";
+            font-weight: 100;
+        }
+
+        ::-moz-placeholder {
+            color: #9fa3a7;
+        }
+
+        ::-webkit-input-placeholder {
+            color: #9fa3a7;
+        }
+
+        :-ms-input-placeholder {
+            color: #9fa3a7;
+        }
+
+        .pc-kk-form {
+            padding: 15px 20px;
+        }
+
+        .pc-kk-form-list input {
+            width: 100%;
+            border: none;
+            background: none;
+            color: #9fa3a7;
+            font-size: 14px;
+            height: 36px;
+            padding: 4px 10px;
+        }
+
+        .pc-kk-form-list textarea {
+            background: none;
+            border: none;
+            height: 60px;
+            padding: 10px;
+            resize: none;
+            width: 94%;
+            line-height: 22px;
+            color: #9fa3a7;
+            font-size: 14px;
+        }
+
+        .nice-select ul {
+            width: 100%;
+            display: none;
+            position: absolute;
+            left: -1px;
+            top: 44px;
+            overflow: hidden;
+            background-color: #fff;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #b9bcbf;
+            z-index: 9999;
+            border-radius: 5px;
+
+        }
+
+        .nice-select ul li {
+            padding-left: 10px;
+        }
+
+        .nice-select ul li:hover {
+            background: #f8f4f4;
+        }
+
+        .pc-kk-form-btn button {
+            background: #335abf;
+            color: #fff;
+            border: none;
+            width: 100%;
+            height: 50px;
+            line-height: 50px;
+            font-size: 16px;
+            border-radius: 50px;
+
+        }
+
+        .row {
+            margin-top: 70px;
+            margin-left: -105px;
+            margin-right: -105px;
+        }
+
+        svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+    </style>
+
+</head>
+<body>
+
+<div class="container">
+    <header class="header dark-bg">
+        <a href="/" class="logo"> Demonstration: <span class="lite">Sequence Labeling with BiLSTM+CRF</span></a>
+    </header>
+
+    <div class="row">
+        <div class="col-md-12" style="margin-top: 20px">
+            <div class="panel panel-default ">
+                <header class="panel-heading">
+                    <span style="font-family: bold;font-size: large;font-style: normal">Input Sentence</span>
+                </header>
+                <div class="pc-kk-form">
+                    <div class="input-group" style="width: 100%;height: 50px;margin-bottom: 20px">
+                        <input type="text" style="width: 100%;height: 50px;margin-top: 20px"
+                               id="user_text" name="sentence" class="form-control"
+                               placeholder="Type here. (text exceeding the Max Sequence Length will be truncated.)"
+                               aria-describedby="basic-addon1"
+                               value="{% if inputvalue %}{{inputvalue}}{% endif %}">
+                    </div>
+                    <div style="text-align: center;width: 100%;margin-top: 20px">
+                        <div class="pc-kk-form-btn" align="center"
+                             style="margin:0 auto;text-align: center;width: 200px">
+                            <button id="predictButton" style="margin:0 auto">Go</button>
+                        </div>
+                    </div>
+                    {% csrf_token %}
+                </div>
+            </div>
+        </div>
+
+        <div id="Results" class="col-md-12" style="margin-top: 30px;height: 150px">
+            <div class="panel panel-default " style="height: 100%">
+                <header class="panel-heading">
+                    <span style="font-family: bold;font-size: large;font-style: normal">Results</span>
+                </header>
+                <div style="margin-top: 40px">
+                    <div id="result" style="width: 100%;position: relative;text-align: center">
+                        <div class="Absolute-Center" style="display:none;">
+                            <img src="{% static 'img/loading2.gif' %}"
+                                 style="margin: 0 auto; position: relative; width: 30px;height:30px">
+                        </div>
+                        <div id="predicted_result"
+                             style="text-align:left;margin: 0 auto; position: relative; width: 86%;">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script type="text/javascript" src="{% static 'js/jquery.js' %}"></script>
+<script>
+    $(document).click(function () {
+        $('[name="nice-select"] ul').hide();
+    });
+
+</script>
+<script type="text/javascript">
+    $(document).ready(function () {
+        $.ajaxSetup({
+            data: {csrfmiddlewaretoken: '{{ csrf_token }}'}
+        });
+        $("#predictButton").click(function () {
+            $(".Absolute-Center").show();
+            $(".resh2").hide();
+            $(".resh3").hide();
+
+            var sentence = document.getElementsByName("sentence");
+            sentence = sentence[0].value;
+            $.post("/predict/", {
+                    "sentence": sentence
+                },
+                function (data, status) {
+                    console.log(data.info);
+                    document.getElementById('predicted_result').innerHTML = data.info;
+                    $(".Absolute-Center").hide();
+                    var wh = document.getElementById('predicted_result').clientHeight;
+                    document.getElementById("Results").style.height = (wh + 150) + "px";
+                });
+        });
+    });
+</script>
+</body>
+</html>
