@@ -191,7 +191,7 @@ output_sentence_entity_file=test.entity.out
 # unnecessary if is_output_sentence_entity=False
 ```
 
-#### ################ Api service Settings ###
+#### G. Api service Settings ###
 
 unnecessary to change the default setting if you operate at the local host.
 
