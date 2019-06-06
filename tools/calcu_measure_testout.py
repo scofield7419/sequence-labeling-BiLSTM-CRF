@@ -14,5 +14,5 @@ def calcu_measure_testout(data_dir='', dataset_files=[], delimeter='\t'):
 
     
 
-calcu_measure_testout(data_dir='/Users/scofield/Desktop/sequence-lableing-vex/data/example_datasets4',
+calcu_measure_testout(data_dir='../data/example_datasets4',
        dataset_files=['test.out', 'test.csv'], delimeter='\t')

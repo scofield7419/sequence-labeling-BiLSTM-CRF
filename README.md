@@ -1,7 +1,7 @@
 
 # BiLSTM+CRF for sequential labeling tasks
 
-![Authour](https://img.shields.io/badge/Author-Scofield%20Phil%20(WHU)-blue.svg) 
+![Authour](https://img.shields.io/badge/Author-Scofield%20Phil-blue.svg) 
 ![Python](https://img.shields.io/badge/Python-3.6-brightgreen.svg) 
 ![Configurable](https://img.shields.io/badge/Vex-Configurable-red.svg) 
 ![Tensorflow](https://img.shields.io/badge/TensorFlow-1.3.0-yellowgreen.svg)
@@ -35,8 +35,9 @@
  6. _Scope Detection_,
  7. _Chinese Word Segmentation (CWG)_,
  8. _Semantic Role Labeling (SRL)_,
- 9. _Spoken Language Understanding_ 
- 10. and so forth...
+ 9. _Spoken Language Understanding_, 
+ 10. _Event Extraction_,
+ 11. and so forth...
 
 Taking *Named Entity Recognition* (NER) task as example:
  
@@ -109,7 +110,7 @@ git clone https://github.com/scofield7419/sequence-labeling-BiLSTM-CRF.git
 pip install -r requirements.txt
 ```
 
-#### Option B:
+#### Option B: _TODO_
 install the BiLSTM-CRF package as a module.
 
 ```
@@ -274,7 +275,6 @@ If you wanna make test, you should
 
 
 For `trainset`, `testset`, `devset`, the common format is as follows:
-Note that the `testset` can only exists with the the `Token` row. 
 
 - word level:
 
@@ -290,6 +290,8 @@ of              I_TAS
 nucleon–nucleon I_TAS
 low-energy      I_TAS
 interactions    E_TAS
+.               O
+
 It              O
 consists        O
 in              O
@@ -309,7 +311,11 @@ simulating      B_PRO
 副 O
 总 O
 理 O
+。 O
+
+他 O
 兼 O
+任 O
 财 B-ORG
 政 I-ORG
 部 I-ORG
@@ -317,7 +323,11 @@ simulating      B_PRO
 ...
 ```
 
-Go to the example dataset for detailed formation.
+Note that:
+
+1. the `testset` can only exists with the the `Token` row. 
+2. each sentence of tokens is segmented with a blank line.
+3. go to the example dataset for detailed formation.
 
 
 #### Output (during testing phase)

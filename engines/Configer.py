@@ -110,6 +110,10 @@ class Configer:
         if the_item in config:
             self.hidden_dim = int(config[the_item])
 
+        the_item = 'CUDA_VISIBLE_DEVICES'
+        if the_item in config:
+            self.CUDA_VISIBLE_DEVICES = config[the_item]
+
         the_item = 'seed'
         if the_item in config:
             self.seed = int(config[the_item])
@@ -236,7 +240,8 @@ class Configer:
         logger.info("     max sequence length: %s" % (self.max_sequence_length))
         logger.info("     attention       dim: %s" % (self.attention_dim))
         logger.info("     hidden          dim: %s" % (self.hidden_dim))
-        logger.info("     seed            dim: %s" % (self.seed))
+        logger.info("     CUDA VISIBLE DEVICE: %s" % (self.CUDA_VISIBLE_DEVICES))
+        logger.info("     seed               : %s" % (self.seed))
         logger.info(" " + "++" * 20)
         logger.info(" Training Settings:")
         logger.info("     epoch              : %s" % (self.epoch))

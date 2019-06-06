@@ -26,6 +26,7 @@ def get_logger(log_dir):
     console.setFormatter(formatter)
     console.setLevel(logging.INFO)
     logger.addHandler(console)
+    logger.info(datetime.datetime.now().strftime('%Y-%m-%d: %H %M %S'))
 
     return logger
 

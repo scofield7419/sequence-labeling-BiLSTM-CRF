@@ -80,5 +80,5 @@ def statis(data_dir='', dataset_files=[], delimeter='\t'):
     print("labels set: [%s]" % (",".join(labels_dict)))
 
 
-statis(data_dir='/Users/scofield/Desktop/sequence-lableing-vex/data/example_datasets4',
+statis(data_dir='../data/example_datasets4',
        dataset_files=['train.csv', 'dev.csv', 'test.csv'], delimeter='\t')

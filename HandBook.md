@@ -10,15 +10,20 @@
     B. make inference based on the above trained model.
 
 Thus, whatever we do with the model, we first should train the model.
-Afterwards, we can make prediction on `testset`, or any text you want to predict.
+Afterwards, we can make prediction on `testset`, or any text you want to predict with.
 
 1.2 why BiLSTM+CRF?
 
 For this question, please refer to the following materials.
 
 - [_Neural Architectures for Named Entity Recognition_](https://www.aclweb.org/anthology/N16-1030)
+- [CRF Layer on the Top of BiLSTM - 1](https://createmomo.github.io/2017/09/12/CRF_Layer_on_the_Top_of_BiLSTM_1/)
+- [CRF Layer on the Top of BiLSTM - 2](https://createmomo.github.io/2017/09/23/CRF_Layer_on_the_Top_of_BiLSTM_2/)
+- [CRF Layer on the Top of BiLSTM - 3](https://createmomo.github.io/2017/10/08/CRF-Layer-on-the-Top-of-BiLSTM-3/)
+- [CRF Layer on the Top of BiLSTM - 4](https://createmomo.github.io/2017/10/17/CRF-Layer-on-the-Top-of-BiLSTM-4/)
+- [CRF Layer on the Top of BiLSTM - 5](https://createmomo.github.io/2017/11/11/CRF-Layer-on-the-Top-of-BiLSTM-5/)
+- [CRF Layer on the Top of BiLSTM - 6](https://createmomo.github.io/2017/11/24/CRF-Layer-on-the-Top-of-BiLSTM-6/)
 - [如何理解LSTM后接CRF？](https://www.zhihu.com/question/62399257/answer/241969722)
-
 
 ## 2. `system.config`
 
@@ -139,13 +144,18 @@ The `max_sequence_length` will be fix after training,
 max_sequence_length=300
 ```
 
-We implement the self attention in `multi-step` RNN.
+We implement the self attention (Transformer style).
 
 ```
 use_self_attention=False
 attention_dim=500
 ```
 
+To use the GPU, set tf.CUDA_VISIBLE_DEVICES=0,1,...
+
+```
+CUDA_VISIBLE_DEVICES=0
+```
 for reproduction.
 
 ```
@@ -195,7 +205,7 @@ output_sentence_entity_file=test.entity.out
 
 unnecessary to change the default setting if you operate at the local host.
 
-if you make display the web around the Intranet, you may change the 
+if you display the web page within the Intranet, you may change the 
 `ip`=`0.0.0.0`. 
 
 ```
@@ -205,6 +215,9 @@ port=8000
 
 ## 3. more tips:
 
+- Once the settings of all parameters are decided during training, it's not allowed to change them during inference e.g., test, interactive_predict, api_service.
+- Then training time and iteration of those models with attention module is much longer than that without attention module.
+- `attention_dim` should be an even number.
 - in `tools` fold:
     - `statis.py` can calculate the statistics for your dataset.
     - `calcu_measure_testout.py` can compute the metrics based on `test.out` and `test.csv`

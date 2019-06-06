@@ -17,6 +17,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 class BiLSTM_CRFs(object):
     def __init__(self, configs, logger, dataManager):
+        os.environ['CUDA_VISIBLE_DEVICES'] = configs.CUDA_VISIBLE_DEVICES
 
         self.configs = configs
         self.logger = logger
@@ -135,7 +136,6 @@ class BiLSTM_CRFs(object):
                 dtype=tf.float32,
                 sequence_length=self.length
             )
-            outputs = tf.concat(outputs, 1)  # [batch, steps, 2*dim]
 
         else:
             lstm_cell = self.cell
@@ -151,28 +151,30 @@ class BiLSTM_CRFs(object):
                 dtype=tf.float32,
                 sequence_length=self.length
             )
+        # outputs: list_steps[batch, 2*dim]
+        outputs = tf.concat(outputs, 1)
+        outputs = tf.reshape(outputs, [self.batch_size, self.max_time_steps, self.hidden_dim * 2])
 
-        ## self attention module
+        # self attention module
         if self.is_attention:
-            H = tf.reshape(outputs, [-1, self.hidden_dim * 2])
-            W_a = tf.get_variable("W_a", shape=[self.hidden_dim * 2, self.attention_dim],
-                                  initializer=self.initializer, trainable=True)
-            u = tf.matmul(H, W_a)
-            H_a = tf.nn.tanh(u)
-            V_a = tf.get_variable("V_a", shape=[self.attention_dim, self.max_time_steps],
-                                  initializer=self.initializer, trainable=True)
-            H_a = tf.matmul(H_a, V_a)
-            H_a = tf.reshape(H_a, [self.batch_size, self.max_time_steps, self.max_time_steps])
+            H1 = tf.reshape(outputs, [-1, self.hidden_dim * 2])
+            W_a1 = tf.get_variable("W_a1", shape=[self.hidden_dim * 2, self.attention_dim],
+                                   initializer=self.initializer, trainable=True)
+            u1 = tf.matmul(H1, W_a1)
+
+            H2 = tf.reshape(tf.identity(outputs), [-1, self.hidden_dim * 2])
+            W_a2 = tf.get_variable("W_a2", shape=[self.hidden_dim * 2, self.attention_dim],
+                                   initializer=self.initializer, trainable=True)
+            u2 = tf.matmul(H2, W_a2)
+
+            u1 = tf.reshape(u1, [self.batch_size, self.max_time_steps, self.hidden_dim * 2])
+            u2 = tf.reshape(u2, [self.batch_size, self.max_time_steps, self.hidden_dim * 2])
+            u = tf.matmul(u1, u2, transpose_b=True)
 
             # Array of weights for each time step
-            A = tf.nn.softmax(H_a, name="attention", axis=1)
-            A = tf.expand_dims(A, -1)
-            A = tf.transpose(A, [0, 2, 1, 3])
-
-            R = tf.expand_dims(tf.reshape(H, [self.batch_size, self.max_time_steps, self.hidden_dim * 2]), 1)
-            R = tf.tile(R, multiples=[1, self.max_time_steps, 1, 1])
-            M = R * A
-            outputs = tf.reduce_sum(M, axis=2)
+            A = tf.nn.softmax(u, name="attention")
+            outputs = tf.matmul(A, tf.reshape(tf.identity(outputs),
+                                              [self.batch_size, self.max_time_steps, self.hidden_dim * 2]))
 
         # linear
         self.outputs = tf.reshape(outputs, [-1, self.hidden_dim * 2])
@@ -181,14 +183,14 @@ class BiLSTM_CRFs(object):
         self.softmax_b = tf.get_variable("softmax_b", [self.num_classes], initializer=self.initializer)
         self.logits = tf.matmul(self.outputs, self.softmax_w) + self.softmax_b
 
+        self.logits = tf.reshape(self.logits, [self.batch_size, self.max_time_steps, self.num_classes])
+        # print(self.logits.get_shape().as_list())
         if not self.is_crf:
             # softmax
             softmax_out = tf.nn.softmax(self.logits, axis=-1)
-            softmax_out = tf.reshape(softmax_out, [self.batch_size, self.max_time_steps, self.num_classes])
 
             self.batch_pred_sequence = tf.cast(tf.argmax(softmax_out, -1), tf.int32)
-            reformed_logits = tf.reshape(self.logits, [self.batch_size, self.max_time_steps, self.num_classes])
-            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=reformed_logits, labels=self.targets)
+            losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
             mask = tf.sequence_mask(self.length)
 
             self.losses = tf.boolean_mask(losses, mask)
@@ -196,10 +198,9 @@ class BiLSTM_CRFs(object):
             self.loss = tf.reduce_mean(losses)
         else:
             # crf
-            self.tags_scores = tf.reshape(self.logits, [self.batch_size, self.max_time_steps, self.num_classes])
             self.log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
-                self.tags_scores, self.targets, self.length)
-            self.batch_pred_sequence, self.batch_viterbi_score = tf.contrib.crf.crf_decode(self.tags_scores,
+                self.logits, self.targets, self.length)
+            self.batch_pred_sequence, self.batch_viterbi_score = tf.contrib.crf.crf_decode(self.logits,
                                                                                            self.transition_params,
                                                                                            self.length)
 
@@ -226,6 +227,7 @@ class BiLSTM_CRFs(object):
         cnt_dev = 0
         unprogressed = 0
         very_start_time = time.time()
+        best_at_epoch = 0
         self.logger.info("\ntraining starting" + ("+" * 20))
         for epoch in range(self.num_epochs):
             start_time = time.time()
@@ -272,7 +274,7 @@ class BiLSTM_CRFs(object):
 
             for iterr in range(num_val_iterations):
                 cnt_dev += 1
-                X_val_batch, y_val_batch = self.dataManager.nextBatch(X_val, y_val,start_index=iterr * self.batch_size)
+                X_val_batch, y_val_batch = self.dataManager.nextBatch(X_val, y_val, start_index=iterr * self.batch_size)
 
                 loss_val, val_batch_viterbi_sequence, dev_summary = \
                     self.sess.run([
@@ -306,6 +308,7 @@ class BiLSTM_CRFs(object):
             if np.array(dev_f1_avg).mean() > self.best_f1_val:
                 unprogressed = 0
                 self.best_f1_val = np.array(dev_f1_avg).mean()
+                best_at_epoch = epoch
                 saver.save(self.sess, self.checkpoints_dir + "/" + self.checkpoint_name, global_step=self.global_step)
                 self.logger.info("saved the new best model with f1: %.3f" % (self.best_f1_val))
             else:
@@ -314,10 +317,12 @@ class BiLSTM_CRFs(object):
             if self.is_early_stop:
                 if unprogressed >= self.patient:
                     self.logger.info("early stopped, no progress obtained within %d epochs" % self.patient)
-                    self.logger.info("final best f1 is: %f" % (self.best_f1_val))
+                    self.logger.info("overall best f1 is %f at %d epoch" % (self.best_f1_val, best_at_epoch))
+                    self.logger.info(
+                        "total training time consumption: %.3f(min)" % ((time.time() - very_start_time) / 60))
                     self.sess.close()
                     return
-        self.logger.info("final best f1 is: %f" % (self.best_f1_val))
+        self.logger.info("overall best f1 is %f at %d epoch" % (self.best_f1_val, best_at_epoch))
         self.logger.info("total training time consumption: %.3f(min)" % ((time.time() - very_start_time) / 60))
         self.sess.close()
 
