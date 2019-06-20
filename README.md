@@ -93,7 +93,7 @@ see more in [HandBook](HandBook.md).
 ## Requirements
 
 - python >=3.5 
-- tensorflow 1.3
+- tensorflow >=1.8
 - numpy
 - pandas
 - Django
