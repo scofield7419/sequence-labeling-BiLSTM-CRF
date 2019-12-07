@@ -96,7 +96,7 @@ see more in [HandBook](HandBook.md).
 - tensorflow >=1.8
 - numpy
 - pandas
-- Django
+- Django==1.11.8
 - jieba
 - ...
 
