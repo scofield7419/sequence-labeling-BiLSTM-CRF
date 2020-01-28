@@ -1,4 +1,4 @@
-tensorflow==1.10.0
+tensorflow==1.15.2
 numpy==1.15.4
 pandas==0.20.3
 Django==1.11.8
