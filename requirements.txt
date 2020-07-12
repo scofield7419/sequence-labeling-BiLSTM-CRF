@@ -1,5 +1,5 @@
 tensorflow==1.10.0
 numpy==1.15.4
 pandas==0.20.3
-Django==1.11.8
+Django==1.11.29
 jieba==0.39
