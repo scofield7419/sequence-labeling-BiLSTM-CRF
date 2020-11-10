@@ -1,4 +1,12 @@
 
+# After Sequence-Labeling
+
+##### Extended features (On going):
+* Based on Redis
+* Custom Labels
+* Distributed Gathering
+* ... 
+
 # BiLSTM+CRF for sequential labeling tasks
 
 ![Authour](https://img.shields.io/badge/Author-Scofield%20Phil-blue.svg) 
