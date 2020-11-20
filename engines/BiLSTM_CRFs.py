@@ -10,13 +10,30 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import time
+from pathlib import PurePosixPath
+import tensorflow_addons as tfa
+from pathlib import PurePosixPath
 
-tf.logging.set_verbosity(tf.logging.ERROR)
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
+
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+# disable v2 behavior here
+tf.compat.v1.disable_v2_behavior()
+# tf.compat.v1.enable_eager_execution()
+tf.compat.v1.enable_resource_variables()
+# tf.compat.v1.enable_v2_tensorshape()
+
 
 
 class BiLSTM_CRFs(object):
     def __init__(self, configs, logger, dataManager):
+        
+
+
         os.environ['CUDA_VISIBLE_DEVICES'] = configs.CUDA_VISIBLE_DEVICES
 
         self.configs = configs
@@ -32,9 +49,9 @@ class BiLSTM_CRFs(object):
 
         self.checkpoint_name = configs.checkpoint_name
         self.checkpoints_dir = configs.checkpoints_dir
-        self.output_test_file = configs.datasets_fold + "/" + configs.output_test_file
+        self.output_test_file = PurePosixPath(configs.datasets_fold/configs.output_test_file)
         self.is_output_sentence_entity = configs.is_output_sentence_entity
-        self.output_sentence_entity_file = configs.datasets_fold + "/" + configs.output_sentence_entity_file
+        self.output_sentence_entity_file = PurePosixPath(configs.datasets_fold/configs.output_sentence_entity_file)
 
         self.biderectional = configs.biderectional
         self.cell_type = configs.cell_type
@@ -49,16 +66,22 @@ class BiLSTM_CRFs(object):
         self.emb_dim = configs.embedding_dim
         self.hidden_dim = configs.hidden_dim
 
+# ====================== model part =========================================
+
+        # check the chosen RNN model
         if configs.cell_type == 'LSTM':
             if self.biderectional:
-                self.cell = tf.nn.rnn_cell.LSTMCell(self.hidden_dim)
+                self.cell = tf.compat.v1.nn.rnn_cell.LSTMCell(self.hidden_dim)
             else:
-                self.cell = tf.nn.rnn_cell.LSTMCell(2 * self.hidden_dim)
+                self.cell = tf.compat.v1.nn.rnn_cell.LSTMCell(2 * self.hidden_dim)
         else:
+            # choose GRU model
             if self.biderectional:
-                self.cell = tf.nn.rnn_cell.GRUCell(self.hidden_dim)
+                self.cell = tf.compat.v1.nn.rnn_cell.GRUCell(self.hidden_dim)
             else:
-                self.cell = tf.nn.rnn_cell.GRUCell(2 * self.hidden_dim)
+                self.cell = tf.compat.v1.nn.rnn_cell.GRUCell(2 * self.hidden_dim)
+
+# ====================== model part ========================================
 
         self.is_attention = configs.use_self_attention
         self.attention_dim = configs.attention_dim
@@ -76,60 +99,87 @@ class BiLSTM_CRFs(object):
         self.print_per_batch = configs.print_per_batch
         self.best_f1_val = 0
 
+        # define the set of optimizers
         if configs.optimizer == 'Adagrad':
-            self.optimizer = tf.train.AdagradOptimizer(self.learning_rate)
+            # self.optimizer = tf.keras.optimizers.Adagrad(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.AdagradOptimizer(self.learning_rate)
         elif configs.optimizer == 'Adadelta':
-            self.optimizer = tf.train.AdadeltaOptimizer(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.AdadeltaOptimizer(self.learning_rate)
+            # self.optimizer = tf.keras.optimizers.Adadelta(self.learning_rate)
         elif configs.optimizer == 'RMSprop':
-            self.optimizer = tf.train.RMSPropOptimizer(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.RMSPropOptimizer(self.learning_rate)
+            # self.optimizer = tf.keras.optimizers.RMSProp(self.learning_rate)
         elif configs.optimizer == 'GD':
-            self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(self.learning_rate)
+            # self.optimizer = tf.keras.optimizers.SGD(self.learning_rate)
         else:
-            self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate)
+            # self.optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-        self.initializer = tf.contrib.layers.xavier_initializer()
+# ================== Variable Definitions ====================================
+
+        # adapting its scale to the shape of weights tensors
+        self.initializer = tf.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform")
         self.global_step = tf.Variable(0, trainable=False, name="global_step", dtype=tf.int32)
 
+        # whether using the pretrained embedding
         if configs.use_pretrained_embedding:
             embedding_matrix = dataManager.getEmbedding(configs.token_emb_dir)
-            self.embedding = tf.Variable(embedding_matrix, trainable=False, name="emb", dtype=tf.float32)
+            self.embedding = tf.Variable(embedding_matrix, trainable=False, use_resource=False, name="emb", dtype=tf.float32)
         else:
-            self.embedding = tf.get_variable("emb", [self.num_tokens, self.emb_dim], trainable=True,
+            self.embedding = tf.compat.v1.get_variable("emb", [self.num_tokens, self.emb_dim], trainable=True,
                                              initializer=self.initializer)
 
+# ================== Variable Definitions ====================================
+
+# ================= Session run ===============
+
+        # build the model based on the parameters provided above
         self.build()
         self.logger.info("model initialed...\n")
 
-        self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+        self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+# ================= Session run ===============
 
     def build(self):
-        self.inputs = tf.placeholder(tf.int32, [None, self.max_time_steps])
-        self.targets = tf.placeholder(tf.int32, [None, self.max_time_steps])
 
-        self.inputs_emb = tf.nn.embedding_lookup(self.embedding, self.inputs)
-        self.inputs_emb = tf.transpose(self.inputs_emb, [1, 0, 2])
+# ========== eager execution problem in tf2 =============
+        
+        # create the variable inputs and targets
+        self.inputs = tf.compat.v1.placeholder(tf.int32, [None, self.max_time_steps])
+        self.targets = tf.compat.v1.placeholder(tf.int32, [None, self.max_time_steps])
+        # self.inputs = tf.keras.Input(shape=[None, self.max_time_steps],dtype = tf.dtypes.int32)
+        # self.targets = tf.keras.Input(shape=[None, self.max_time_steps],dtype = tf.dtypes.int32)
+
+
+        # look up embeddings for the given ids from a list of tensors
+        # self.inputs_emb = tf.nn.embedding_lookup(params=self.embedding, ids=self.inputs)
+        self.inputs_emb = tf.nn.embedding_lookup(params=self.embedding, ids=self.inputs)
+
+        self.inputs_emb = tf.transpose(a=self.inputs_emb, perm=[1, 0, 2])
         self.inputs_emb = tf.reshape(self.inputs_emb, [-1, self.emb_dim])
         self.inputs_emb = tf.split(self.inputs_emb, self.max_time_steps, 0)
 
-        # lstm cell
+        # ================ lstm cell =================
         if self.biderectional:
             lstm_cell_fw = self.cell
             lstm_cell_bw = self.cell
 
             # dropout
             if self.is_training:
-                lstm_cell_fw = tf.nn.rnn_cell.DropoutWrapper(lstm_cell_fw, output_keep_prob=(1 - self.dropout_rate))
-                lstm_cell_bw = tf.nn.rnn_cell.DropoutWrapper(lstm_cell_bw, output_keep_prob=(1 - self.dropout_rate))
+                lstm_cell_fw = tf.compat.v1.nn.rnn_cell.DropoutWrapper(lstm_cell_fw, output_keep_prob=(1 - self.dropout_rate))
+                lstm_cell_bw = tf.compat.v1.nn.rnn_cell.DropoutWrapper(lstm_cell_bw, output_keep_prob=(1 - self.dropout_rate))
 
-            lstm_cell_fw = tf.nn.rnn_cell.MultiRNNCell([lstm_cell_fw] * self.num_layers)
-            lstm_cell_bw = tf.nn.rnn_cell.MultiRNNCell([lstm_cell_bw] * self.num_layers)
+            lstm_cell_fw = tf.compat.v1.nn.rnn_cell.MultiRNNCell([lstm_cell_fw] * self.num_layers)
+            lstm_cell_bw = tf.compat.v1.nn.rnn_cell.MultiRNNCell([lstm_cell_bw] * self.num_layers)
 
             # get the length of each sample
-            self.length = tf.reduce_sum(tf.sign(self.inputs), reduction_indices=1)
+            self.length = tf.reduce_sum(input_tensor=tf.sign(self.inputs), axis=1)
             self.length = tf.cast(self.length, tf.int32)
 
             # forward and backward
-            outputs, _, _ = tf.contrib.rnn.static_bidirectional_rnn(
+            # outputs, _, _ = tf.compat.v1.nn.rnn_cell.static_bidirectional_rnn(
+            outputs, _, _ = tf.compat.v1.nn.static_bidirectional_rnn(    
                 lstm_cell_fw,
                 lstm_cell_bw,
                 self.inputs_emb,
@@ -140,17 +190,18 @@ class BiLSTM_CRFs(object):
         else:
             lstm_cell = self.cell
             if self.is_training:
-                lstm_cell = tf.nn.rnn_cell.DropoutWrapper(lstm_cell, output_keep_prob=(1 - self.dropout_rate))
-            lstm_cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
-            self.length = tf.reduce_sum(tf.sign(self.inputs), reduction_indices=1)
+                lstm_cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(lstm_cell, output_keep_prob=(1 - self.dropout_rate))
+            lstm_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([lstm_cell] * self.num_layers)
+            self.length = tf.reduce_sum(input_tensor=tf.sign(self.inputs), axis=1)
             self.length = tf.cast(self.length, tf.int32)
 
-            outputs, _ = tf.contrib.rnn.static_rnn(
+            outputs, _ = tf.compat.v1.nn.rnn_cell.static_rnn(
                 lstm_cell,
                 self.inputs_emb,
                 dtype=tf.float32,
                 sequence_length=self.length
             )
+
         # outputs: list_steps[batch, 2*dim]
         outputs = tf.concat(outputs, 1)
         outputs = tf.reshape(outputs, [self.batch_size, self.max_time_steps, self.hidden_dim * 2])
@@ -158,12 +209,12 @@ class BiLSTM_CRFs(object):
         # self attention module
         if self.is_attention:
             H1 = tf.reshape(outputs, [-1, self.hidden_dim * 2])
-            W_a1 = tf.get_variable("W_a1", shape=[self.hidden_dim * 2, self.attention_dim],
+            W_a1 = tf.compat.v1.get_variable("W_a1", shape=[self.hidden_dim * 2, self.attention_dim],
                                    initializer=self.initializer, trainable=True)
             u1 = tf.matmul(H1, W_a1)
 
             H2 = tf.reshape(tf.identity(outputs), [-1, self.hidden_dim * 2])
-            W_a2 = tf.get_variable("W_a2", shape=[self.hidden_dim * 2, self.attention_dim],
+            W_a2 = tf.compat.v1.get_variable("W_a2", shape=[self.hidden_dim * 2, self.attention_dim],
                                    initializer=self.initializer, trainable=True)
             u2 = tf.matmul(H2, W_a2)
 
@@ -178,47 +229,50 @@ class BiLSTM_CRFs(object):
 
         # linear
         self.outputs = tf.reshape(outputs, [-1, self.hidden_dim * 2])
-        self.softmax_w = tf.get_variable("softmax_w", [self.hidden_dim * 2, self.num_classes],
+        self.softmax_w = tf.compat.v1.get_variable("softmax_w", [self.hidden_dim * 2, self.num_classes],
                                          initializer=self.initializer)
-        self.softmax_b = tf.get_variable("softmax_b", [self.num_classes], initializer=self.initializer)
+        self.softmax_b = tf.compat.v1.get_variable("softmax_b", [self.num_classes], initializer=self.initializer)
         self.logits = tf.matmul(self.outputs, self.softmax_w) + self.softmax_b
 
         self.logits = tf.reshape(self.logits, [self.batch_size, self.max_time_steps, self.num_classes])
+        
         # print(self.logits.get_shape().as_list())
         if not self.is_crf:
             # softmax
             softmax_out = tf.nn.softmax(self.logits, axis=-1)
 
-            self.batch_pred_sequence = tf.cast(tf.argmax(softmax_out, -1), tf.int32)
+            self.batch_pred_sequence = tf.cast(tf.argmax(input=softmax_out, axis=-1), tf.int32)
             losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.targets)
             mask = tf.sequence_mask(self.length)
 
-            self.losses = tf.boolean_mask(losses, mask)
+            self.losses = tf.boolean_mask(tensor=losses, mask=mask)
 
-            self.loss = tf.reduce_mean(losses)
+            self.loss = tf.reduce_mean(input_tensor=losses)
         else:
             # crf
-            self.log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
+            # self.log_likelihood, self.transition_params = tf.contrib.crf.crf_log_likelihood(
+            #     self.logits, self.targets, self.length)
+            self.log_likelihood, self.transition_params = tfa.text.crf.crf_log_likelihood(
                 self.logits, self.targets, self.length)
-            self.batch_pred_sequence, self.batch_viterbi_score = tf.contrib.crf.crf_decode(self.logits,
+            self.batch_pred_sequence, self.batch_viterbi_score = tfa.text.crf.crf_decode(self.logits,
                                                                                            self.transition_params,
                                                                                            self.length)
 
-            self.loss = tf.reduce_mean(-self.log_likelihood)
+            self.loss = tf.reduce_mean(input_tensor=-self.log_likelihood)
 
-        self.train_summary = tf.summary.scalar("loss", self.loss)
-        self.dev_summary = tf.summary.scalar("loss", self.loss)
+        self.train_summary = tf.compat.v1.summary.scalar("loss", self.loss)
+        self.dev_summary = tf.compat.v1.summary.scalar("loss", self.loss)
 
         self.opt_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
 
     def train(self):
         X_train, y_train, X_val, y_val = self.dataManager.getTrainingSet()
-        tf.initialize_all_variables().run(session=self.sess)
+        tf.compat.v1.initialize_all_variables().run(session=self.sess)
 
-        saver = tf.train.Saver(max_to_keep=self.max_to_keep)
-        tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter(self.logdir + "/training_loss", self.sess.graph)
-        dev_writer = tf.summary.FileWriter(self.logdir + "/validating_loss", self.sess.graph)
+        saver = tf.compat.v1.train.Saver(max_to_keep=self.max_to_keep)
+        tf.compat.v1.summary.merge_all()
+        train_writer = tf.compat.v1.summary.FileWriter(PurePosixPath(self.logdir/"training_loss"),self.sess.graph)
+        dev_writer = tf.compat.v1.summary.FileWriter(PurePosixPath(self.logdir/"validating_loss"),self.sess.graph)
 
         num_iterations = int(math.ceil(1.0 * len(X_train) / self.batch_size))
         num_val_iterations = int(math.ceil(1.0 * len(X_val) / self.batch_size))
@@ -309,7 +363,7 @@ class BiLSTM_CRFs(object):
                 unprogressed = 0
                 self.best_f1_val = np.array(dev_f1_avg).mean()
                 best_at_epoch = epoch
-                saver.save(self.sess, self.checkpoints_dir + "/" + self.checkpoint_name, global_step=self.global_step)
+                saver.save(self.sess, PurePosixPath(self.checkpoints_dir/self.checkpoint_name).as_posix(), global_step=self.global_step)
                 self.logger.info("saved the new best model with f1: %.3f" % (self.best_f1_val))
             else:
                 unprogressed += 1
@@ -333,8 +387,8 @@ class BiLSTM_CRFs(object):
         self.logger.info("total number of testing iterations: " + str(num_iterations))
 
         self.logger.info("loading model parameter\n")
-        tf.initialize_all_variables().run(session=self.sess)
-        saver = tf.train.Saver()
+        tf.compat.v1.initialize_all_variables().run(session=self.sess)
+        saver = tf.compat.v1.train.Saver()
         saver.restore(self.sess, tf.train.latest_checkpoint(self.checkpoints_dir))
 
         tokens = []
@@ -407,10 +461,12 @@ class BiLSTM_CRFs(object):
 
         self.sess.close()
 
+
     def predict_single(self, sentence):
         X, Sentence, Y = self.dataManager.prepare_single_sentence(sentence)
         _, tokens, entitys, predicts_labels_entitylevel, indexs = self.predictBatch(self.sess, X, Y, Sentence)
         return tokens[0], entitys[0], predicts_labels_entitylevel[0], indexs[0]
+
 
     def predictBatch(self, sess, X, y_psydo_label, X_test_str_batch):
         entity_list = []
@@ -445,7 +501,7 @@ class BiLSTM_CRFs(object):
 
     def soft_load(self):
         self.logger.info("loading model parameter")
-        tf.initialize_all_variables().run(session=self.sess)
-        saver = tf.train.Saver()
+        tf.compat.v1.initialize_all_variables().run(session=self.sess)
+        saver = tf.compat.v1.train.Saver()
         saver.restore(self.sess, tf.train.latest_checkpoint(self.checkpoints_dir))
         self.logger.info("loading model successfully")
