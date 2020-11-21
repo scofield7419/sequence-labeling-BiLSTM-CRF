@@ -1,14 +1,15 @@
 
-# BiLSTM+CRF for sequential labeling tasks
+## BiLSTM+CRF for sequential labeling tasks
 
 ![Authour](https://img.shields.io/badge/Author-Scofield%20Phil-blue.svg) 
-![Python](https://img.shields.io/badge/Python-3.6-brightgreen.svg) 
+![Python](https://img.shields.io/badge/Python-3.8.1-brightgreen.svg) 
 ![Configurable](https://img.shields.io/badge/Vex-Configurable-red.svg) 
-![Tensorflow](https://img.shields.io/badge/TensorFlow-1.10.0-yellowgreen.svg)
+![Tensorflow](https://img.shields.io/badge/TensorFlow-2.3.1-yellowgreen.svg)
 ![BiLSTM+CRF](https://img.shields.io/badge/NLP-BiLSTM+CRF-redgreen.svg)
 ![License](https://img.shields.io/badge/license-GPL3.0-green.svg)
 
 ---
+
 
 🚀🚀🚀 A TensorFlow implementation of BiLSTM+CRF model, for sequence labeling tasks.
 
