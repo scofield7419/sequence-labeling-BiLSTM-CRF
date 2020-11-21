@@ -1,8 +1,8 @@
 
 # After Sequence-Labeling
 
+![Python](https://img.shields.io/badge/Python-3.8.1-brightgreen.svg)
 ![Tensorflow](https://img.shields.io/badge/TensorFlow-2.3.1-yellowgreen.svg)
-![Python](https://img.shields.io/badge/Python-3.8.1-brightgreen.svg)  
 ![BiLSTM+CRF](https://img.shields.io/badge/NLP-BiLSTM+CRF-redgreen.svg)
 ![Database](https://img.shields.io/badge/Database-Redis-green.svg)
 ![License](https://img.shields.io/badge/license-GPL3.0-green.svg)
