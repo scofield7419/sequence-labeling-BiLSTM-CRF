@@ -1,13 +1,6 @@
 
 # After Sequence-Labeling
 
-##### Extended features (On going):
-* Based on Redis
-* Custom Labels
-* Distributed Gathering
-* ... 
-
-
 ![Tensorflow](https://img.shields.io/badge/TensorFlow-2.3.1-yellowgreen.svg)
 ![Python](https://img.shields.io/badge/Python-3.8.1-brightgreen.svg)  
 ![BiLSTM+CRF](https://img.shields.io/badge/NLP-BiLSTM+CRF-redgreen.svg)
@@ -15,6 +8,15 @@
 ![License](https://img.shields.io/badge/license-GPL3.0-green.svg)
 
 ---
+
+
+##### Extended features (On going):
+* Based on Redis
+* Custom Labels
+* Distributed Gathering
+* ... 
+
+
 
 🚀🚀🚀 A TensorFlow implementation of BiLSTM+CRF model, for sequence labeling tasks.
 
